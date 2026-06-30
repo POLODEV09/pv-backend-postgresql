@@ -50,7 +50,7 @@ router.put('/role', auth, async (req, res) => {
     }
     const { username, role } = req.body;
     if (!username || !role) return res.status(400).json({ error: 'Mangler brukernavn eller rolle' });
-    if (!['user', 'moderator', 'admin'].includes(role)) return res.status(400).json({ error: 'Ugyldig rolle' });
+    if (!['user', 'moderator', 'admin', 'verifiseringsagent'].includes(role)) return res.status(400).json({ error: 'Ugyldig rolle' });
 
     const target = await prisma.user.findFirst({
       where: { username: { equals: username, mode: 'insensitive' } }
