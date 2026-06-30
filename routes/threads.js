@@ -111,11 +111,19 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// Delete thread
+// Delete thread (author, admin or mod)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const thread = await prisma.thread.findUnique({ where: { id: req.params.id } });
-    if (!thread || thread.authorId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (!thread) return res.status(404).json({ error: 'Not found' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const isAdmin = ['polosop', 'polo', 'polodev09'].includes(user?.username?.toLowerCase());
+    const isMod = user?.role === 'moderator';
+
+    if (thread.authorId !== req.userId && !isAdmin && !isMod) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     await prisma.thread.delete({ where: { id: req.params.id } });
     res.json({ success: true });
