@@ -7,16 +7,16 @@ const router = express.Router();
 
 router.post('/callback', async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, redirect_uri } = req.body;
     if (!code) return res.status(400).json({ error: 'No code' });
 
-    // Get Discord token
+    // Get Discord token — use redirect_uri from body or fallback to env
     const tokenRes = await axios.post('https://discord.com/api/v10/oauth2/token', {
       client_id: process.env.DISCORD_CLIENT_ID,
       client_secret: process.env.DISCORD_CLIENT_SECRET,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.DISCORD_REDIRECT_URI
+      redirect_uri: redirect_uri || process.env.DISCORD_REDIRECT_URI
     }, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
@@ -57,6 +57,7 @@ router.post('/callback', async (req, res) => {
       token,
       user: {
         id: user.id,
+        discordId: user.discordId,
         username: user.username,
         avatar: user.avatar,
         role: user.role
