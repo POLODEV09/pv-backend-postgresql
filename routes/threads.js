@@ -102,7 +102,7 @@ router.put('/:id', auth, async (req, res) => {
     if (!thread) return res.status(404).json({ error: 'Not found' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || user?.role === 'moderator';
+   const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
 
     // Only author can edit content, staff can pin/lock
     const data = {};
@@ -135,7 +135,7 @@ router.delete('/:id', auth, async (req, res) => {
     if (!thread) return res.status(404).json({ error: 'Not found' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || user?.role === 'moderator';
+    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
 
     if (thread.authorId !== req.userId && !isStaff) {
       return res.status(403).json({ error: 'Forbidden' });
