@@ -3,31 +3,35 @@ const { prisma } = require('../db');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+const STAFF = ['polosop', 'endzzern'];
 
-// Get all threads
+// Get all threads (pinned first, then by date)
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = 10;
+    const limit = 20;
     const skip = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    const where = search ? { title: { contains: search, mode: 'insensitive' } } : {};
 
     const threads = await prisma.thread.findMany({
+      where,
       skip,
       take: limit,
       include: {
-        author: { select: { id: true, username: true, avatar: true } },
+        author: { select: { id: true, username: true, avatar: true, discordId: true, role: true } },
         posts: { select: { id: true } },
         likes: { select: { id: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }]
     });
 
-    const total = await prisma.thread.count();
+    const total = await prisma.thread.count({ where });
 
     res.json({
       threads: threads.map(t => ({
         ...t,
-        views: t.views,
         postCount: t.posts.length,
         likeCount: t.likes.length
       })),
@@ -45,11 +49,11 @@ router.get('/:id', async (req, res) => {
     const thread = await prisma.thread.findUnique({
       where: { id: req.params.id },
       include: {
-        author: { select: { id: true, username: true, avatar: true } },
+        author: { select: { id: true, username: true, avatar: true, discordId: true, role: true } },
         posts: {
           include: {
-            author: { select: { id: true, username: true, avatar: true } },
-            likes: { select: { id: true } }
+            author: { select: { id: true, username: true, avatar: true, discordId: true, role: true } },
+            likes: { select: { userId: true } }
           },
           orderBy: { createdAt: 'asc' }
         },
@@ -59,7 +63,6 @@ router.get('/:id', async (req, res) => {
 
     if (!thread) return res.status(404).json({ error: 'Not found' });
 
-    // Increment views
     await prisma.thread.update({
       where: { id: req.params.id },
       data: { views: { increment: 1 } }
@@ -84,44 +87,57 @@ router.post('/', auth, async (req, res) => {
         category: category || 'Generelt',
         authorId: req.userId
       },
-      include: { author: { select: { id: true, username: true, avatar: true } } }
+      include: { author: { select: { id: true, username: true, avatar: true, discordId: true, role: true } } }
     });
-
     res.json(thread);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Update thread
+// Update thread (author or staff)
 router.put('/:id', auth, async (req, res) => {
   try {
     const thread = await prisma.thread.findUnique({ where: { id: req.params.id } });
-    if (!thread || thread.authorId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (!thread) return res.status(404).json({ error: 'Not found' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
+
+    // Only author can edit content, staff can pin/lock
+    const data = {};
+    if (thread.authorId === req.userId) {
+      if (req.body.title) data.title = req.body.title;
+      if (req.body.content) data.content = req.body.content;
+    }
+    if (isStaff) {
+      if (req.body.pinned !== undefined) data.pinned = req.body.pinned;
+      if (req.body.locked !== undefined) data.locked = req.body.locked;
+    }
+
+    if (Object.keys(data).length === 0) return res.status(403).json({ error: 'Ingen tilgang' });
 
     const updated = await prisma.thread.update({
       where: { id: req.params.id },
-      data: req.body,
-      include: { author: { select: { id: true, username: true, avatar: true } } }
+      data,
+      include: { author: { select: { id: true, username: true, avatar: true, discordId: true, role: true } } }
     });
-
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Delete thread (author, admin or mod)
+// Delete thread (author or staff)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const thread = await prisma.thread.findUnique({ where: { id: req.params.id } });
     if (!thread) return res.status(404).json({ error: 'Not found' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    const isAdmin = ['polosop', 'polo', 'polodev09'].includes(user?.username?.toLowerCase());
-    const isMod = user?.role === 'moderator';
+    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
 
-    if (thread.authorId !== req.userId && !isAdmin && !isMod) {
+    if (thread.authorId !== req.userId && !isStaff) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
