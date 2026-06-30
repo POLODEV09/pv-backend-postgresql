@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-const ADMIN_USERS = ['polosop', 'polo', 'polodev09'];
+const ADMIN_USERS = ['polosop', 'endzzern'];
 
 // Get current user
 router.get('/', auth, async (req, res) => {
