@@ -25,6 +25,7 @@ model User {
   likes     Like[]
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  staffMessages    StaffMessage[] @relation("StaffMessages")
 }
 
 model Thread {
@@ -88,4 +89,15 @@ model Message {
 
   receiverId String
   receiver   User   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model StaffMessage {
+  id        String   @id @default(cuid())
+  content   String
+  channel   String   @default("chat")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  authorId  String
+  author    User     @relation("StaffMessages", fields: [authorId], references: [id], onDelete: Cascade)
 }

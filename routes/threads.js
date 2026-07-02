@@ -102,7 +102,7 @@ router.put('/:id', auth, async (req, res) => {
     if (!thread) return res.status(404).json({ error: 'Not found' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-   const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
+    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
 
     // Only author can edit content, staff can pin/lock
     const data = {};

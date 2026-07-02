@@ -29,7 +29,7 @@ router.post('/', auth, async (req, res) => {
     if (!thread) return res.status(404).json({ error: 'Tråd ikke funnet' });
     if (thread.locked) {
       const user = await prisma.user.findUnique({ where: { id: req.userId } });
-      const isStaff = STAFF.includes(user?.username?.toLowerCase()) || user?.role === 'moderator';
+      const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
       if (!isStaff) return res.status(403).json({ error: 'Denne tråden er låst' });
     }
 
@@ -63,7 +63,7 @@ router.delete('/:id', auth, async (req, res) => {
     if (!post) return res.status(404).json({ error: 'Not found' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || user?.role === 'moderator';
+    const isStaff = STAFF.includes(user?.username?.toLowerCase()) || ['moderator','admin','verifiseringsagent'].includes(user?.role);
 
     if (post.authorId !== req.userId && !isStaff) return res.status(403).json({ error: 'Forbidden' });
 
